@@ -49,6 +49,7 @@ pip install -r requirements.txt
 ```bash
 python pointer_tool.py
 ```
+**Note**: The project was created using python 3.11.0
 
 ### Using the Point Mapping Tool
 
