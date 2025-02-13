@@ -5,6 +5,8 @@ from PIL import Image, ImageTk
 import cv2
 import numpy as np
 import os
+import pandas as pd
+import json
 
 class ScrollableFrame(ttk.Frame):
     def __init__(self, container, *args, **kwargs):
@@ -25,6 +27,45 @@ class ScrollableFrame(ttk.Frame):
         scrollbar.pack(side="right", fill="y")
         scrollbar_h.pack(side="bottom", fill="x")
         canvas.pack(side="left", fill="both", expand=True)
+
+# Add create_dataset_df function here (same as in point_matching_tool.py)
+def create_dataset_df(main_path):
+    """
+    Recibe el directorio principal del dataset y retorna un DataFrame
+    con las rutas de las imágenes rgb y su correspondiente imagen de profundidad.
+    """
+    # Directorios de imágenes rgb y depth
+    rgb_dir = os.path.join(main_path, "rgb")
+    depth_dir = os.path.join(main_path, "depth")
+    
+    # Verificar que los directorios existan
+    if not os.path.exists(rgb_dir):
+        raise FileNotFoundError(f"No se encontró el directorio: {rgb_dir}")
+    if not os.path.exists(depth_dir):
+        raise FileNotFoundError(f"No se encontró el directorio: {depth_dir}")
+    
+    # Obtener la lista de archivos en la carpeta rgb
+    rgb_files = os.listdir(rgb_dir)
+    
+    # Crear una lista para almacenar las rutas correspondientes de cada imagen
+    data = []
+    for file in rgb_files:
+        rgb_image_path = os.path.join(rgb_dir, file)
+        depth_image_path = os.path.join(depth_dir, file)
+        
+        # Verificar que la imagen de profundidad exista
+        if os.path.exists(depth_image_path):
+            data.append({
+                "rgb": rgb_image_path,
+                "depth": depth_image_path
+            })
+        else:
+            print(f"Warning: No se encontró la imagen de profundidad para: {file}")
+    
+    # Crear el DataFrame
+    df = pd.DataFrame(data)
+    return df
+ 
 
 class ObesityAnalyzerApp:
     def __init__(self, master):
@@ -118,8 +159,41 @@ class ObesityAnalyzerApp:
             # Add clear points button after other buttons
             self.clear_button = ttk.Button(self.button_frame, text="Clear Points", command=self.clear_points)
             self.clear_button.pack(side=tk.LEFT, padx=5)
+
+            # Add dataset variables
+            self.dataset_df = None
+            self.current_index = -1
+            
+            # Add dataset controls after the button frame
+            self.add_dataset_controls()
+
+            # Add storage for points per image
+            self.points_storage = {}  # Solo para la sesión actual
+            
         except Exception as e:
             self.show_error("Error initializing application", str(e))
+
+    def add_dataset_controls(self):
+        dataset_frame = ttk.Frame(self.button_frame)
+        dataset_frame.pack(expand=True, pady=5)
+
+        # Load dataset button
+        self.btn_load_dataset = ttk.Button(dataset_frame, text="Load Dataset", 
+                                         command=self.load_dataset)
+        self.btn_load_dataset.pack(side=tk.LEFT, padx=5)
+
+        # Navigation buttons
+        self.btn_prev = ttk.Button(dataset_frame, text="Previous", 
+                                 command=self.previous_image, state=tk.DISABLED)
+        self.btn_prev.pack(side=tk.LEFT, padx=5)
+
+        self.btn_next = ttk.Button(dataset_frame, text="Next", 
+                                 command=self.next_image, state=tk.DISABLED)
+        self.btn_next.pack(side=tk.LEFT, padx=5)
+
+        # Current image label
+        self.current_image_label = ttk.Label(dataset_frame, text="No dataset loaded")
+        self.current_image_label.pack(side=tk.LEFT, padx=5)
 
     def show_error(self, title, message):
         messagebox.showerror(title, message)
@@ -201,7 +275,7 @@ class ObesityAnalyzerApp:
             self.clear_points_btn.pack(pady=10)
 
     def clear_points(self):
-        # Clear points and lines from canvas
+        # Clear current points
         for _, _, point_id in self.points:
             self.canvas.delete(point_id)
         for line_id in self.lines:
@@ -210,6 +284,11 @@ class ObesityAnalyzerApp:
         # Clear lists
         self.points = []
         self.lines = []
+        
+        # If we're viewing a dataset image, also clear stored points
+        if self.current_index >= 0:
+            if str(self.current_index) in self.points_storage:
+                del self.points_storage[str(self.current_index)]
         
         # Update image
         self.update_overlay()
@@ -298,6 +377,12 @@ class ObesityAnalyzerApp:
         # Add only the number above the point
         self.canvas.create_text(x, y-15, text=str(len(self.points)), 
                             fill="white", font=("Arial", 12, "bold"))
+
+        # Store points for current image
+        if self.current_index >= 0:
+            self.points_storage[str(self.current_index)] = {
+                'points': [(x, y) for x, y, _ in self.points],
+            }
         
         # Create frame for each point with border and fixed width
         point_container = ttk.Frame(self.points_frame, relief="solid", borderwidth=1)
@@ -356,6 +441,120 @@ class ObesityAnalyzerApp:
             self.alpha_slider.set(40)  # 40% transparency
         except Exception as e:
             self.show_error("Error setting default values", str(e))
+
+    def load_dataset(self):
+        try:
+            folder = filedialog.askdirectory(title="Select Dataset Root Folder")
+            if folder:
+                self.dataset_df = create_dataset_df(folder)
+                if not self.dataset_df.empty:
+                    self.current_index = 0
+                    self.update_navigation_buttons()
+                    self.load_current_images()
+                    messagebox.showinfo("Success", f"Loaded dataset with {len(self.dataset_df)} image pairs")
+                else:
+                    messagebox.showwarning("Warning", "No valid image pairs found in the dataset")
+        except Exception as e:
+            self.show_error("Error loading dataset", str(e))
+
+    def update_navigation_buttons(self):
+        if self.dataset_df is None or self.current_index < 0:
+            self.btn_prev.config(state=tk.DISABLED)
+            self.btn_next.config(state=tk.DISABLED)
+            self.current_image_label.config(text="No dataset loaded")
+            return
+
+        self.btn_prev.config(state=tk.NORMAL if self.current_index > 0 else tk.DISABLED)
+        self.btn_next.config(state=tk.NORMAL if self.current_index < len(self.dataset_df) - 1 else tk.DISABLED)
+        
+        current_file = os.path.basename(self.dataset_df.iloc[self.current_index]['rgb'])
+        self.current_image_label.config(text=f"Image {self.current_index + 1}/{len(self.dataset_df)}: {current_file}")
+
+    def load_current_images(self):
+        try:
+            if self.dataset_df is None or self.current_index < 0:
+                return
+
+            current_pair = self.dataset_df.iloc[self.current_index]
+            
+            # Clear existing points and lines
+            for _, _, point_id in self.points:
+                self.canvas.delete(point_id)
+            for line_id in self.lines:
+                self.canvas.delete(line_id)
+            self.points = []
+            self.lines = []
+            
+            # Load RGB image
+            self.rgb_image_cv = cv2.imread(current_pair['rgb'], cv2.IMREAD_UNCHANGED)
+            if self.rgb_image_cv is None:
+                raise IOError(f"Could not load RGB image: {current_pair['rgb']}")
+            
+            # Load depth image
+            self.depth_image_cv = cv2.imread(current_pair['depth'], cv2.IMREAD_UNCHANGED)
+            if self.depth_image_cv is None:
+                raise IOError(f"Could not load depth image: {current_pair['depth']}")
+
+            # Ensure canvas is created
+            self.create_or_update_canvas()
+
+            # Restore points if they exist for this image
+            if str(self.current_index) in self.points_storage:
+                stored_data = self.points_storage[str(self.current_index)]
+                
+                # Recreate points with new canvas IDs
+                for x, y in stored_data['points']:
+                    point_id = self.canvas.create_oval(x-4, y-4, x+4, y+4, 
+                                                     fill="white", outline="black", width=2)
+                    self.points.append((x, y, point_id))
+                    
+                    # Recreate lines if needed
+                    if len(self.points) > 1:
+                        prev_x, prev_y, _ = self.points[-2]
+                        line_id = self.canvas.create_line(prev_x, prev_y, x, y, 
+                                                        fill="yellow", width=2)
+                        self.lines.append(line_id)
+
+            # Clear points frame
+            for widget in self.points_frame.winfo_children():
+                widget.destroy()
+
+            # Restore point labels in the list
+            for i, (x, y, _) in enumerate(self.points, 1):
+                point_container = ttk.Frame(self.points_frame, relief="solid", borderwidth=1)
+                point_container.pack(fill=tk.X, padx=5, pady=2)
+                point_label = ttk.Label(point_container, 
+                                    text=f"Point {i} at ({int(x)}, {int(y)})",
+                                    anchor="center")
+                point_label.pack(padx=5, pady=2, fill=tk.X)
+            
+            self.update_overlay()
+        except Exception as e:
+            self.show_error("Error loading images", str(e))
+
+    def previous_image(self):
+        if self.current_index > 0:
+            # Save current points before changing image
+            if self.points:
+                self.points_storage[str(self.current_index)] = {
+                    'points': [(x, y) for x, y, _ in self.points],
+                }
+
+            self.current_index -= 1
+            self.load_current_images()
+            self.update_navigation_buttons()
+
+    def next_image(self):
+        if self.dataset_df is not None and self.current_index < len(self.dataset_df) - 1:
+            # Save current points before changing image
+            if self.points:
+                self.points_storage[str(self.current_index)] = {
+                    'points': [(x, y) for x, y, _ in self.points],
+                }
+
+            self.current_index += 1
+            self.load_current_images()
+            self.update_navigation_buttons()
 
 def main():
     root = tk.Tk()
