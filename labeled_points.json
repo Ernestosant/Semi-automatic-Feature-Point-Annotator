@@ -1,0 +1,54 @@
+{
+    "1": {
+        "rgb_points": [
+            [
+                499,
+                261
+            ],
+            [
+                415,
+                212
+            ]
+        ],
+        "depth_points": [
+            [
+                535,
+                253
+            ],
+            [
+                451,
+                204
+            ]
+        ],
+        "image_paths": {
+            "rgb": "C:/Mis_proyectos/Proyecto/sistema de medicion de obesidad/Sistema para analizar obesidad/Imagenes_personas/dataset\\rgb\\face_image_gaby_espalda.png",
+            "depth": "C:/Mis_proyectos/Proyecto/sistema de medicion de obesidad/Sistema para analizar obesidad/Imagenes_personas/dataset\\depth\\face_image_gaby_espalda.png"
+        }
+    },
+    "0": {
+        "rgb_points": [
+            [
+                391,
+                223
+            ],
+            [
+                439,
+                261
+            ]
+        ],
+        "depth_points": [
+            [
+                427,
+                215
+            ],
+            [
+                475,
+                253
+            ]
+        ],
+        "image_paths": {
+            "rgb": "C:/Mis_proyectos/Proyecto/sistema de medicion de obesidad/Sistema para analizar obesidad/Imagenes_personas/dataset\\rgb\\face_image_gaby_derecho.png",
+            "depth": "C:/Mis_proyectos/Proyecto/sistema de medicion de obesidad/Sistema para analizar obesidad/Imagenes_personas/dataset\\depth\\face_image_gaby_derecho.png"
+        }
+    }
+}

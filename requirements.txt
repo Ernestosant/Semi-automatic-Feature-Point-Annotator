@@ -7,3 +7,4 @@ langgraph==0.2.45
 numpy==1.26.4
 matplotlib==3.10.0
 opencv-python==4.11.0.86
+pandas==2.2.3
