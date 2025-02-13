@@ -3,6 +3,13 @@
 
 ## Features
 
+### Dataset Management
+- Load and navigate through image datasets
+- Automatic dataset directory scanning
+- Dataset navigation controls (Previous/Next)
+- Point storage per image
+- Persistence of labeled points across sessions
+
 ### Point Mapping Tool
 - Load and display RGB images and depth maps side by side
 - Semi-automatic point annotation with synchronized mapping
@@ -11,6 +18,7 @@
 - Point-to-point line connections for better visualization
 - Scrollable point list with coordinates
 - Clear points functionality
+- JSON-based point storage and retrieval
 
 ![image](https://github.com/user-attachments/assets/77c152a0-a728-4ecf-9828-3e61ec870964)
 
@@ -53,20 +61,21 @@ python pointer_tool.py
 
 ### Using the Point Mapping Tool
 
-1. Click "Load RGB Image" to load your source image
-2. Click "Load Depth Map" to load the corresponding depth map
+1. Click "Load Dataset" to select a directory containing your images
+2. Navigate through the dataset using Previous/Next buttons
 3. Adjust X/Y offsets to align the depth map with the RGB image
 4. Click points on the RGB image to automatically map them to the depth map
-5. Use "Clear Points" to restart the annotation process
+5. Points are automatically saved to labeled_points.json
+6. Use "Clear Points" to restart the annotation for the current image
 
 ### Using the Image Overlay Tool
 
-1. Load both RGB and depth images using the respective buttons
-2. Use the transparency slider to adjust the overlay visibility
-3. Fine-tune the alignment using X/Y offset controls
-4. Click to add points on the overlaid image
-5. Points will be automatically connected in sequence
-6. View point coordinates in the scrollable list
+1. Click "Load Dataset" to select your image directory
+2. Use navigation buttons to move through the dataset
+3. Use the transparency slider to adjust the overlay visibility
+4. Fine-tune the alignment using X/Y offset controls
+5. Click to add points on the overlaid image
+6. Points are stored per image and persisted between sessions
 
 ## Technical Details
 
@@ -84,4 +93,10 @@ python pointer_tool.py
 - Point labels with sequential numbering
 - Yellow connection lines between points
 - White point markers with black outline
+
+### Data Storage
+- Points are stored in labeled_points.json
+- Each image maintains its own point collection
+- Automatic saving on point updates
+- Point data persists between sessions
 
